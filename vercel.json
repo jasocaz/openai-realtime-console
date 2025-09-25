@@ -3,7 +3,7 @@
     { "source": "/token", "destination": "/api/token" }
   ],
   "buildCommand": "npm run build:client",
-  "outputDirectory": "dist/client"
+  "outputDirectory": "dist"
 }
 
 
