@@ -8,11 +8,12 @@ export default async function handler(req, res) {
     session: {
       type: "realtime",
       model: "gpt-realtime",
+      // Disable server audio output; we only want transcription
       audio: {
-        output: {
-          voice: "marin",
-        },
+        output: null,
       },
+      instructions:
+        "Transcribe the user's speech only. Do not speak or respond; no replies.",
     },
   };
 

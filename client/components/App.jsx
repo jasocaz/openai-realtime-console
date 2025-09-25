@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import logo from "/assets/openai-logomark.svg";
 import EventLog from "./EventLog";
 import SessionControls from "./SessionControls";
-import ToolPanel from "./ToolPanel";
+import TranscriptPanel from "./TranscriptPanel";
 
 export default function App() {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [events, setEvents] = useState([]);
+  const [transcriptSegments, setTranscriptSegments] = useState([]);
+  const [liveText, setLiveText] = useState("");
   const [dataChannel, setDataChannel] = useState(null);
   const peerConnection = useRef(null);
   const audioElement = useRef(null);
@@ -20,10 +22,8 @@ export default function App() {
     // Create a peer connection
     const pc = new RTCPeerConnection();
 
-    // Set up to play remote audio from the model
-    audioElement.current = document.createElement("audio");
-    audioElement.current.autoplay = true;
-    pc.ontrack = (e) => (audioElement.current.srcObject = e.streams[0]);
+    // Disable remote audio playback from model
+    pc.ontrack = () => {};
 
     // Add local audio track for microphone input in the browser
     const ms = await navigator.mediaDevices.getUserMedia({
@@ -100,25 +100,8 @@ export default function App() {
     }
   }
 
-  // Send a text message to the model
-  function sendTextMessage(message) {
-    const event = {
-      type: "conversation.item.create",
-      item: {
-        type: "message",
-        role: "user",
-        content: [
-          {
-            type: "input_text",
-            text: message,
-          },
-        ],
-      },
-    };
-
-    sendClientEvent(event);
-    sendClientEvent({ type: "response.create" });
-  }
+  // Disable text messaging; transcription-only mode
+  function sendTextMessage() {}
 
   // Attach event listeners to the data channel when a new one is created
   useEffect(() => {
@@ -130,7 +113,22 @@ export default function App() {
           event.timestamp = new Date().toLocaleTimeString();
         }
 
+        // Keep a raw log for debugging if needed
         setEvents((prev) => [event, ...prev]);
+
+        // Only surface transcription-related events to UI
+        // Expected shapes (based on Realtime):
+        // - response.output_text.delta { delta: string }
+        // - response.output_text.done { text: string }
+        if (event.type === "response.output_text.delta" && event.delta) {
+          setLiveText((prev) => prev + event.delta);
+        }
+        if (event.type === "response.output_text.done") {
+          if (event.text && event.text.trim()) {
+            setTranscriptSegments((prev) => [...prev, event.text.trim()]);
+          }
+          setLiveText("");
+        }
       });
 
       // Set session active when the data channel is opened
@@ -158,20 +156,12 @@ export default function App() {
             <SessionControls
               startSession={startSession}
               stopSession={stopSession}
-              sendClientEvent={sendClientEvent}
-              sendTextMessage={sendTextMessage}
-              events={events}
               isSessionActive={isSessionActive}
             />
           </section>
         </section>
         <section className="absolute top-0 w-[380px] right-0 bottom-0 p-4 pt-0 overflow-y-auto">
-          <ToolPanel
-            sendClientEvent={sendClientEvent}
-            sendTextMessage={sendTextMessage}
-            events={events}
-            isSessionActive={isSessionActive}
-          />
+          <TranscriptPanel transcriptSegments={transcriptSegments} liveText={liveText} />
         </section>
       </main>
     </>
