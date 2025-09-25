@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/token", "destination": "/api/token" }
+  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/client"
+}
+
+
